@@ -11,6 +11,7 @@ const { Server: SocketIO } = require('socket.io');
 const { waitForDB } = require('./db/pool');
 const { runMigrations } = require('./db/migrate');
 const { runSeed } = require('./seed/index');
+const { startWatchdog } = require('./services/heartbeatWatchdog');
 
 // ─── Routes (stub — expanded in each Phase) ──────────────────────────────────
 const healthRouter = require('./routes/health');
@@ -38,9 +39,7 @@ app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
 app.use('/api/health', healthRouter);
-
-// Phase 2 — ingest
-// app.use('/api/ingest', require('./routes/ingest'));
+app.use('/api/ingest', require('./routes/ingest'));
 
 // Phase 4 — tickets
 // app.use('/api/tickets', require('./routes/tickets'));
@@ -82,7 +81,8 @@ async function start() {
     console.log('[Server] Checking seed data...');
     await runSeed();
 
-    // 4. Phase 3 will add: topology builder + localization engine init here
+    // 4. Start heartbeat watchdog for silent fw 1.2 devices
+    startWatchdog(io);
 
     // 5. Start HTTP + WebSocket server
     httpServer.listen(PORT, '0.0.0.0', () => {
