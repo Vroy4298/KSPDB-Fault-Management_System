@@ -1,0 +1,61 @@
+services:
+  # ─────────────────────────────────────────────
+  # PostgreSQL database
+  # ─────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-kspdb}
+      POSTGRES_USER: ${POSTGRES_USER:-kspdb_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kspdb_pass}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kspdb_user} -d ${POSTGRES_DB:-kspdb}"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────
+  # Node.js backend (Express + Socket.io)
+  # ─────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-kspdb_user}:${POSTGRES_PASSWORD:-kspdb_pass}@db:5432/${POSTGRES_DB:-kspdb}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-llama3-8b-8192}
+      # Heartbeat watchdog: how long before a silent pole is considered "possibly dark"
+      # Default: 20 minutes (15 min interval + 45s jitter + ~4 min buffer)
+      HEARTBEAT_TIMEOUT_MS: ${HEARTBEAT_TIMEOUT_MS:-1200000}
+      # Debounce: wait this long after first dark signal before raising ticket
+      # Balances false-positive suppression vs <120s localization target
+      DEBOUNCE_MS: ${DEBOUNCE_MS:-20000}
+    ports:
+      - "${BACKEND_PORT:-3000}:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────
+  # React frontend (Vite build served by nginx)
+  # nginx also proxies /api and /socket.io to backend
+  # ─────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  pgdata:
