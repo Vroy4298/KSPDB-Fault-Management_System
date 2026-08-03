@@ -12,8 +12,11 @@ const { waitForDB } = require('./db/pool');
 const { runMigrations } = require('./db/migrate');
 const { runSeed } = require('./seed/index');
 const { startWatchdog } = require('./services/heartbeatWatchdog');
+const { buildTopologyCache } = require('./services/topology');
+const { init: initTrigger } = require('./services/localizationTrigger');
+const { summarizeFault } = require('./services/aiService');
 
-// ─── Routes (stub — expanded in each Phase) ──────────────────────────────────
+// ─── Routes ──────────────────────────────────────────────────────────────────
 const healthRouter = require('./routes/health');
 
 // ─── App setup ───────────────────────────────────────────────────────────────
@@ -38,15 +41,10 @@ app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
-app.use('/api/health', healthRouter);
-app.use('/api/ingest', require('./routes/ingest'));
-
-// Phase 4 — tickets
-// app.use('/api/tickets', require('./routes/tickets'));
-
-// Phase 5 — topology + scheduled outages
-// app.use('/api/topology', require('./routes/topology'));
-// app.use('/api/scheduled-outages', require('./routes/scheduledOutages'));
+app.use('/api/health',   healthRouter);
+app.use('/api/ingest',   require('./routes/ingest'));
+app.use('/api/tickets',  require('./routes/tickets'));
+app.use('/api/topology', require('./routes/topology'));
 
 // Phase 6 — simulator
 // app.use('/api/simulator', require('./routes/simulator'));
@@ -81,10 +79,16 @@ async function start() {
     console.log('[Server] Checking seed data...');
     await runSeed();
 
-    // 4. Start heartbeat watchdog for silent fw 1.2 devices
+    // 4. Build in-memory topology cache (DT trees for BFS)
+    await buildTopologyCache();
+
+    // 5. Initialise localization trigger (debounce timers + AI summarizer)
+    initTrigger(io, summarizeFault);
+
+    // 6. Start heartbeat watchdog for silent fw 1.2 devices
     startWatchdog(io);
 
-    // 5. Start HTTP + WebSocket server
+    // 7. Start HTTP + WebSocket server
     httpServer.listen(PORT, '0.0.0.0', () => {
       console.log(`[Server] ✓ Listening on port ${PORT}`);
       console.log(`[Server] Health: http://localhost:${PORT}/api/health`);

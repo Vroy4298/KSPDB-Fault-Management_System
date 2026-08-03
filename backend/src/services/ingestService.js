@@ -2,6 +2,7 @@
 
 const { pool } = require('../db/pool');
 const { resolveEnergized } = require('../validation/telemetrySchema');
+const { triggerForPole } = require('./localizationTrigger');
 
 // ─── SQL templates (prepared once, reused) ───────────────────────────────────
 
@@ -98,6 +99,15 @@ async function processEvent(payload, client = pool) {
     device_id, battery_mv ?? null, rssi ?? null, fw ?? null,
   ]);
 
+  // 3. Fire localization when pole goes dark (power_lost or watchdog already
+  //    marks energized=false in pole_state).  Trigger uses per-DT debounce
+  //    so rapid bursts collapse into one localization run.
+  if (!energized && client === pool) {
+    // Only trigger from pool (not batch tx client) to avoid nested tx issues.
+    // Batch trigger is handled separately after the transaction commits.
+    triggerForPole(pole_id);
+  }
+
   return { status: 'processed', energized };
 }
 
@@ -114,6 +124,8 @@ async function processEvent(payload, client = pool) {
 async function processBatch(payloads) {
   let processed = 0;
   let duplicates = 0;
+  const darkPoles = new Set();
+  const restoredPoles = new Set();
 
   const client = await pool.connect();
   try {
@@ -121,8 +133,13 @@ async function processBatch(payloads) {
 
     for (const payload of payloads) {
       const result = await processEvent(payload, client);
-      if (result.status === 'duplicate') duplicates++;
-      else processed++;
+      if (result.status === 'duplicate') {
+        duplicates++;
+      } else {
+        processed++;
+        if (!result.energized) darkPoles.add(payload.pole_id);
+        else restoredPoles.add(payload.pole_id);
+      }
     }
 
     await client.query('COMMIT');
@@ -131,6 +148,21 @@ async function processBatch(payloads) {
     throw err;
   } finally {
     client.release();
+  }
+
+  // After commit: fire localization for DTs with new dark poles
+  for (const poleId of darkPoles) {
+    triggerForPole(poleId);
+  }
+
+  // Auto-verify tickets for restored poles
+  if (restoredPoles.size > 0) {
+    const { autoVerifyRestoredTickets } = require('./ticketService');
+    for (const poleId of restoredPoles) {
+      autoVerifyRestoredTickets(poleId).catch((e) =>
+        console.warn('[Batch] Auto-verify error:', e.message)
+      );
+    }
   }
 
   return { processed, duplicates };
