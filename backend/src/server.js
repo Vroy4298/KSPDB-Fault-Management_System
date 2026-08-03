@@ -46,8 +46,7 @@ app.use('/api/ingest',   require('./routes/ingest'));
 app.use('/api/tickets',  require('./routes/tickets'));
 app.use('/api/topology', require('./routes/topology'));
 
-// Phase 6 — simulator
-// app.use('/api/simulator', require('./routes/simulator'));
+app.use('/api/simulator', require('./routes/simulator'));
 
 // 404 catch-all
 app.use((_req, res) => res.status(404).json({ error: 'Not found' }));

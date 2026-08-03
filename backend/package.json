@@ -7,7 +7,9 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "test": "jest --runInBand --forceExit",
-    "lint": "eslint src/ --ext .js"
+    "lint": "eslint src/ --ext .js",
+    "loadtest": "node src/scripts/loadtest.js",
+    "loadtest:heavy": "node src/scripts/loadtest.js --count 10000 --batch 500"
   },
   "dependencies": {
     "cors": "^2.8.5",
