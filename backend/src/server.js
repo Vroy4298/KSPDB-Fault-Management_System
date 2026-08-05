@@ -48,6 +48,18 @@ app.use('/api/topology', require('./routes/topology'));
 
 app.use('/api/simulator', require('./routes/simulator'));
 
+// Serve static frontend files if built (for single-service deployment e.g. Render)
+const path = require('path');
+const fs = require('fs');
+const frontendDist = path.join(__dirname, '../../frontend/dist');
+if (fs.existsSync(frontendDist)) {
+  app.use(express.static(frontendDist));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) return next();
+    res.sendFile(path.join(frontendDist, 'index.html'));
+  });
+}
+
 // 404 catch-all
 app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
 
