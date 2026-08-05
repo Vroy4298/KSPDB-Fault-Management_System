@@ -1,0 +1,6 @@
+# Always use LF for shell scripts (Linux containers)
+*.sh text eol=lf
+
+# Use CRLF on Windows for these
+*.bat text eol=crlf
+*.cmd text eol=crlf
