@@ -69,13 +69,12 @@ router.post('/fault', async (req, res) => {
   try {
     let body = req.body;
 
-    // If a scenario_id was given, expand it to full body
     if (body.scenario_id) {
       const scenario = getScenarios().find((s) => s.id === body.scenario_id);
       if (!scenario) {
         return res.status(400).json({ error: `Unknown scenario_id: ${body.scenario_id}` });
       }
-      body = { ...scenario.body, ...body }; // allow overrides
+      body = { ...scenario.body, ...body };
     }
 
     if (!body.type) {
@@ -88,7 +87,6 @@ router.post('/fault', async (req, res) => {
 
     const result = await runScenario(body);
 
-    // Notify connected clients
     const io = req.app.get('io');
     if (io) {
       io.emit('simulator:fault_injected', result);
@@ -147,7 +145,6 @@ router.post('/reset', async (req, res) => {
        RETURNING pole_id`
     );
 
-    // Clear all open (non-closed) tickets for a clean slate
     if (req.body.clear_tickets) {
       await pool.query(
         `UPDATE fault_tickets SET status='closed', closed_at=NOW(), updated_at=NOW()

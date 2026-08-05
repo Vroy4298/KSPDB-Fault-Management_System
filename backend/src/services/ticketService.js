@@ -16,14 +16,11 @@
 
 const { pool } = require('../db/pool');
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
 /** Check if there is already an active (non-closed) ticket for this fault location. */
 async function findExistingTicket(upstreamPoleId, downstreamPoleId, dtId) {
   let query, params;
 
   if (upstreamPoleId && downstreamPoleId) {
-    // Span fault: match by both boundary poles
     query = `
       SELECT id, status FROM fault_tickets
       WHERE upstream_pole_id = $1
@@ -33,7 +30,6 @@ async function findExistingTicket(upstreamPoleId, downstreamPoleId, dtId) {
     `;
     params = [upstreamPoleId, downstreamPoleId];
   } else if (dtId) {
-    // DT fault: match by DT
     query = `
       SELECT id, status FROM fault_tickets
       WHERE dt_id = $1
@@ -63,8 +59,6 @@ async function findExistingFeederTicket(feederId) {
   return rows[0] || null;
 }
 
-// ─── Ticket creation ──────────────────────────────────────────────────────────
-
 /**
  * Create a new fault ticket from a localization fault descriptor.
  * Idempotent: returns existing ticket ID if one already exists for this location.
@@ -79,7 +73,6 @@ async function createTicket(fault, aiSummarize = null, io = null) {
   try {
     await client.query('BEGIN');
 
-    // ── Idempotency check ──────────────────────────────────────────────────
     let existing = null;
     if (fault.fault_type === 'feeder') {
       existing = await findExistingFeederTicket(fault.feeder_id);
@@ -96,7 +89,6 @@ async function createTicket(fault, aiSummarize = null, io = null) {
       return { ticket_id: existing.id, created: false };
     }
 
-    // ── Insert ticket ──────────────────────────────────────────────────────
     const scheduledNote = fault.scheduled_outage
       ? `Scheduled outage SO-${fault.scheduled_outage.id} may explain this fault.`
       : null;
@@ -136,7 +128,6 @@ async function createTicket(fault, aiSummarize = null, io = null) {
     );
     const ticketId = ticketRows[0].id;
 
-    // ── Insert affected poles ──────────────────────────────────────────────
     if (
       fault.raw_dark_pole_ids &&
       fault.raw_dark_pole_ids.length > 0 &&
@@ -153,7 +144,6 @@ async function createTicket(fault, aiSummarize = null, io = null) {
 
     await client.query('COMMIT');
 
-    // ── AI summary (async, non-blocking) ──────────────────────────────────
     if (aiSummarize) {
       aiSummarize(fault)
         .then((summary) => {
@@ -169,7 +159,6 @@ async function createTicket(fault, aiSummarize = null, io = null) {
         );
     }
 
-    // ── Real-time broadcast ────────────────────────────────────────────────
     if (io) {
       io.emit('ticket:new', {
         id: ticketId,

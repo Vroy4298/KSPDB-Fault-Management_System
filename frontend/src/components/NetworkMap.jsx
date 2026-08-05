@@ -2,11 +2,8 @@ import { useEffect, useRef, useCallback } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-// Bangalore center
 const DEFAULT_CENTER = [12.97, 77.59];
 const DEFAULT_ZOOM   = 13;
-
-// ─── Marker factories ──────────────────────────────────────────────────────
 
 function poleClass(pole) {
   if (pole.energized === true)  return 'pole-live';
@@ -38,14 +35,11 @@ function makeFaultIcon() {
   });
 }
 
-// ─── Component ────────────────────────────────────────────────────────────
-
 export default function NetworkMap({ topology, tickets, selectedTicket, onPoleClick, onTicketSelect }) {
   const containerRef = useRef(null);
   const mapRef       = useRef(null);
   const layersRef    = useRef({ poles: null, dts: null, faults: null, edges: null });
 
-  // ── Init map ───────────────────────────────────────────────────────────
   useEffect(() => {
     if (mapRef.current) return;
 
@@ -73,7 +67,6 @@ export default function NetworkMap({ topology, tickets, selectedTicket, onPoleCl
     };
   }, []);
 
-  // ── Draw topology ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!mapRef.current || !topology) return;
 
@@ -84,13 +77,11 @@ export default function NetworkMap({ topology, tickets, selectedTicket, onPoleCl
 
     const poleMap = new Map(topology.poles.map((p) => [p.pole_id, p]));
 
-    // Draw edges first (under poles)
     for (const edge of topology.edges) {
       const child  = poleMap.get(edge.child_pole_id);
       const parent = edge.parent_pole_id ? poleMap.get(edge.parent_pole_id) : null;
       if (!child) continue;
 
-      // Find parent coords: if no parent pole, use DT coords
       let parentLatLon;
       if (parent) {
         parentLatLon = [parseFloat(parent.lat), parseFloat(parent.lon)];
@@ -109,7 +100,6 @@ export default function NetworkMap({ topology, tickets, selectedTicket, onPoleCl
       }).addTo(edgeLayer);
     }
 
-    // Draw poles
     for (const pole of topology.poles) {
       const cls = poleClass(pole);
       const size = pole.has_device ? 8 : 5;
@@ -120,12 +110,10 @@ export default function NetworkMap({ topology, tickets, selectedTicket, onPoleCl
 
       marker.on('click', () => onPoleClick?.(pole));
       marker.addTo(poleLayer);
-      // store ref for live updates
       marker._poleId = pole.pole_id;
       marker._currentClass = cls;
     }
 
-    // Draw DTs
     for (const dt of topology.dts) {
       const marker = L.marker([parseFloat(dt.lat), parseFloat(dt.lon)], {
         icon: makeDtIcon(),
@@ -140,7 +128,6 @@ export default function NetworkMap({ topology, tickets, selectedTicket, onPoleCl
     }
   }, [topology, onPoleClick]);
 
-  // ── Draw fault pins ────────────────────────────────────────────────────
   useEffect(() => {
     if (!mapRef.current) return;
 
@@ -171,7 +158,6 @@ export default function NetworkMap({ topology, tickets, selectedTicket, onPoleCl
     }
   }, [tickets, onTicketSelect]);
 
-  // ── Pan to selected ticket ─────────────────────────────────────────────
   useEffect(() => {
     if (!mapRef.current || !selectedTicket?.fault_lat) return;
     mapRef.current.setView(

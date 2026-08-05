@@ -5,8 +5,6 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
-    // Dev server proxy — maps /api and /socket.io to the backend
-    // (only used during `npm run dev`, not in Docker)
     proxy: {
       '/api': {
         target: 'http://localhost:3000',

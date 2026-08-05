@@ -25,20 +25,11 @@
 
 const { pool } = require('../db/pool');
 
-// ─── Module-level caches ──────────────────────────────────────────────────────
-
-/** @type {Map<string, object>}  dtId → tree */
 const dtCache = new Map();
-
-/** @type {Map<string, string>}  pole_id → dt_id */
 const poleIndex = new Map();
-
-/** @type {Map<string, string[]>}  feeder_id → [dt_id, ...] */
 const dtsByFeeder = new Map();
 
 let loaded = false;
-
-// ─── Loader ───────────────────────────────────────────────────────────────────
 
 /**
  * Load the entire topology into memory.
@@ -48,29 +39,24 @@ let loaded = false;
 async function buildTopologyCache() {
   console.log('[Topology] Building in-memory tree cache...');
 
-  // 1. Load all DTs
   const dtRows = await pool.query(
     'SELECT dt_id, feeder_id, lat, lon, households_served FROM distribution_transformers'
   );
   const dtMap = new Map(dtRows.rows.map((r) => [r.dt_id, r]));
 
-  // 2. Load all poles (only fields needed for localization)
   const poleRows = await pool.query(
     'SELECT pole_id, lat, lon, feeder_id, dt_id, device_id, fw_version, ward, pincode FROM poles'
   );
   const poleMap = new Map(poleRows.rows.map((r) => [r.pole_id, r]));
 
-  // 3. Load all topology edges
   const edgeRows = await pool.query(
     'SELECT child_pole_id, parent_pole_id, dt_id, inferred, edge_length_m FROM topology_edges'
   );
 
-  // 4. Build DT trees
   dtCache.clear();
   poleIndex.clear();
   dtsByFeeder.clear();
 
-  // Initialise empty trees for all DTs
   for (const dt of dtMap.values()) {
     dtCache.set(dt.dt_id, {
       dt,
@@ -83,11 +69,10 @@ async function buildTopologyCache() {
     dtsByFeeder.set(dt.feeder_id, list);
   }
 
-  // Add poles to tree nodes (without edges yet)
   for (const pole of poleMap.values()) {
     poleIndex.set(pole.pole_id, pole.dt_id);
     const tree = dtCache.get(pole.dt_id);
-    if (!tree) continue; // orphan pole (shouldn't happen)
+    if (!tree) continue;
     tree.nodes.set(pole.pole_id, {
       pole,
       parent: null,
@@ -97,7 +82,6 @@ async function buildTopologyCache() {
     });
   }
 
-  // Wire edges (parent ↔ children)
   for (const edge of edgeRows.rows) {
     const tree = dtCache.get(edge.dt_id);
     if (!tree) continue;
@@ -110,13 +94,11 @@ async function buildTopologyCache() {
     node.edge_length_m = parseFloat(edge.edge_length_m) || 0;
 
     if (edge.parent_pole_id) {
-      // Wire parent's children array
       const parentNode = tree.nodes.get(edge.parent_pole_id);
       if (parentNode) {
         parentNode.children.push(edge.child_pole_id);
       }
     } else {
-      // parent_pole_id = null → this pole is a root (directly under DT)
       tree.roots.push(edge.child_pole_id);
     }
   }

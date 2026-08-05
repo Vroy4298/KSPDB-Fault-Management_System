@@ -6,8 +6,6 @@ import NetworkMap from './components/NetworkMap';
 import TicketDetail from './components/TicketDetail';
 import SimulatorPanel from './components/SimulatorPanel';
 
-// ─── Helpers ───────────────────────────────────────────────────────────────
-
 function timeAgo(iso) {
   if (!iso) return '—';
   const diff = (Date.now() - new Date(iso).getTime()) / 1000;
@@ -15,8 +13,6 @@ function timeAgo(iso) {
   if (diff < 3600) return `${Math.round(diff / 60)}m ago`;
   return `${Math.round(diff / 3600)}h ago`;
 }
-
-// ─── Toast system ──────────────────────────────────────────────────────────
 
 function useToasts() {
   const [toasts, setToasts] = useState([]);
@@ -28,21 +24,18 @@ function useToasts() {
   return { toasts, add };
 }
 
-// ─── Main App ──────────────────────────────────────────────────────────────
-
 export default function App() {
   const [topology,        setTopology]        = useState(null);
   const [tickets,         setTickets]         = useState([]);
   const [selectedTicket,  setSelectedTicket]  = useState(null);
-  const [selectedTab,     setSelectedTab]     = useState('tickets'); // tickets | simulator
+  const [selectedTab,     setSelectedTab]     = useState('tickets');
   const [showDetail,      setShowDetail]      = useState(false);
   const [loadingTopo,     setLoadingTopo]     = useState(true);
   const [darkCount,       setDarkCount]       = useState(0);
 
   const { toasts, add: addToast } = useToasts();
-  const topologyRef = useRef(null); // for live pole updates
+  const topologyRef = useRef(null);
 
-  // ── Socket event handler ────────────────────────────────────────────────
   const handleSocketEvent = useCallback((event, data) => {
     switch (event) {
       case 'ticket:new': {
@@ -64,7 +57,6 @@ export default function App() {
         break;
       }
       case 'telemetry:event': {
-        // Live-update dark count in header
         setDarkCount(prev => {
           if (data.energized === false) return prev + 1;
           if (data.energized === true)  return Math.max(0, prev - 1);
@@ -96,7 +88,6 @@ export default function App() {
 
   const { connected } = useSocket(handleSocketEvent);
 
-  // ── Data loading ────────────────────────────────────────────────────────
   async function refreshTopology() {
     try {
       const data = await api.getTopology();
@@ -126,16 +117,14 @@ export default function App() {
     })();
   }, []);
 
-  // ── Ticket selection ────────────────────────────────────────────────────
   const selectTicket = useCallback(async (ticket) => {
     setSelectedTicket(ticket);
     setShowDetail(true);
     setSelectedTab('tickets');
-    // Fetch full details (with affected_pole_ids)
     try {
       const full = await api.getTicket(ticket.id);
       setSelectedTicket(full);
-    } catch { /* use the summary version */ }
+    } catch {}
   }, []);
 
   const handleTicketUpdated = useCallback((id, newStatus) => {
@@ -144,16 +133,13 @@ export default function App() {
     addToast(`Ticket → ${newStatus.replace('_', ' ')}`, 'success');
   }, []);
 
-  // ─── Stats ───────────────────────────────────────────────────────────────
   const liveCount    = topology ? topology.poles.filter(p => p.energized === true).length : 0;
   const totalPoles   = topology?.poles.length ?? 0;
   const openTickets  = tickets.filter(t => !['verified','closed'].includes(t.status)).length;
 
-  // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <>
       <div className="app-layout">
-        {/* ── Header ── */}
         <header className="header">
           <div className="header-logo">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -167,7 +153,6 @@ export default function App() {
 
           <div className="header-spacer" />
 
-          {/* Stats */}
           <div className="stat-chip">
             <span className="dot" style={{ background: 'var(--live)' }} />
             <span className="val">{liveCount.toLocaleString()}</span>
@@ -189,14 +174,12 @@ export default function App() {
             <span>poles</span>
           </div>
 
-          {/* Connection indicator */}
           <div className="flex items-center gap-2" style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-muted)' }}>
             <div className={`connection-dot ${connected ? '' : 'disconnected'}`} />
             {connected ? 'Live' : 'Reconnecting…'}
           </div>
         </header>
 
-        {/* ── Map ── */}
         <main className="map-area">
           {loadingTopo ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', flexDirection: 'column', gap: 16 }}>
@@ -213,7 +196,6 @@ export default function App() {
             />
           )}
 
-          {/* Map legend */}
           {!loadingTopo && (
             <div className="map-legend">
               <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.6px', color: 'var(--text-muted)', marginBottom: 4, textTransform: 'uppercase' }}>Legend</div>
@@ -226,9 +208,7 @@ export default function App() {
           )}
         </main>
 
-        {/* ── Sidebar ── */}
         <aside className="sidebar">
-          {/* Tabs */}
           <div className="sidebar-tabs">
             <button
               className={`sidebar-tab ${selectedTab === 'tickets' ? 'active' : ''}`}
@@ -249,7 +229,6 @@ export default function App() {
             </button>
           </div>
 
-          {/* Content */}
           <div className="sidebar-content">
             {selectedTab === 'tickets' && !showDetail && (
               tickets.length === 0 ? (
@@ -317,7 +296,6 @@ export default function App() {
         </aside>
       </div>
 
-      {/* Toast container */}
       <div className="toast-container">
         {toasts.map(({ id, msg, type }) => (
           <div key={id} className={`toast toast-${type}`}>{msg}</div>

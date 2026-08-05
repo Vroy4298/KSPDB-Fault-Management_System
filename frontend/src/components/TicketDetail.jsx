@@ -55,7 +55,6 @@ export default function TicketDetail({ ticket, onUpdated, onClose }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Header */}
       <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
         <div className="flex items-center gap-2" style={{ marginBottom: 6 }}>
           <span className={`ticket-type-badge badge-${ticket.fault_type}`}>
@@ -73,10 +72,8 @@ export default function TicketDetail({ ticket, onUpdated, onClose }) {
         </div>
       </div>
 
-      {/* Scrollable content */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px' }}>
 
-        {/* Impact cards */}
         <div className="detail-grid" style={{ marginBottom: 14 }}>
           <div className="detail-card">
             <div className="num" style={{ color: 'var(--dark-pole)' }}>{ticket.affected_poles}</div>
@@ -88,7 +85,6 @@ export default function TicketDetail({ ticket, onUpdated, onClose }) {
           </div>
         </div>
 
-        {/* Confidence */}
         <div style={{ marginBottom: 14 }}>
           <div className="detail-label">Detection Confidence</div>
           <div className="flex items-center gap-2">
@@ -105,7 +101,6 @@ export default function TicketDetail({ ticket, onUpdated, onClose }) {
           )}
         </div>
 
-        {/* Fault boundary */}
         {(ticket.upstream_pole_id || ticket.downstream_pole_id) && (
           <div style={{ marginBottom: 14 }}>
             <div className="detail-label">Fault Boundary</div>
@@ -122,7 +117,6 @@ export default function TicketDetail({ ticket, onUpdated, onClose }) {
           </div>
         )}
 
-        {/* Location */}
         <div style={{ marginBottom: 14 }}>
           <div className="detail-label">Location</div>
           <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
@@ -140,7 +134,6 @@ export default function TicketDetail({ ticket, onUpdated, onClose }) {
           </div>
         </div>
 
-        {/* Timeline */}
         <div style={{ marginBottom: 14 }}>
           <div className="detail-label">Timeline</div>
           {[
@@ -158,7 +151,6 @@ export default function TicketDetail({ ticket, onUpdated, onClose }) {
           ))}
         </div>
 
-        {/* AI Summary */}
         <div style={{ marginBottom: 14 }}>
           <div className="detail-label">AI Summary</div>
           {ticket.ai_summary ? (
@@ -177,7 +169,6 @@ export default function TicketDetail({ ticket, onUpdated, onClose }) {
         )}
       </div>
 
-      {/* Action buttons */}
       {transition && (
         <div className="action-row">
           <button className={`btn ${transition.cls}`} onClick={handleAdvance} disabled={loading}>

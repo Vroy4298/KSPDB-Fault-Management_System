@@ -24,7 +24,7 @@ export default function SimulatorPanel({ onResult }) {
   }, []);
 
   async function refreshStatus() {
-    try { setStatus(await api.getSimulatorStatus()); } catch { /* ignore */ }
+    try { setStatus(await api.getSimulatorStatus()); } catch {}
   }
 
   async function runScenario(scenario) {
@@ -62,7 +62,6 @@ export default function SimulatorPanel({ onResult }) {
 
   return (
     <div className="sim-panel">
-      {/* Live status */}
       {status && (
         <div style={{
           display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8,
@@ -81,7 +80,6 @@ export default function SimulatorPanel({ onResult }) {
         </div>
       )}
 
-      {/* Optional DT override */}
       <div style={{ marginBottom: 12 }}>
         <div className="sim-section-title">Optional: Target DT</div>
         <input
@@ -102,7 +100,6 @@ export default function SimulatorPanel({ onResult }) {
         />
       </div>
 
-      {/* Scenario cards */}
       <div className="sim-section-title">Inject Scenario</div>
       {scenarios.map(s => (
         <div
@@ -123,7 +120,6 @@ export default function SimulatorPanel({ onResult }) {
         </div>
       ))}
 
-      {/* Reset controls */}
       <div className="sim-section-title" style={{ marginTop: 16 }}>Reset</div>
       <div style={{ display: 'flex', gap: 8 }}>
         <button className="btn btn-secondary w-full" onClick={() => doReset(false)} disabled={!!loading}>
@@ -137,7 +133,6 @@ export default function SimulatorPanel({ onResult }) {
         "Restore Poles" restores energized state. "Full Reset" also closes all open tickets.
       </div>
 
-      {/* Last result */}
       {lastResult && (
         <>
           <div className="sim-section-title" style={{ marginTop: 14 }}>Last Result</div>
@@ -150,7 +145,6 @@ export default function SimulatorPanel({ onResult }) {
         </>
       )}
 
-      {/* Refresh */}
       <button
         className="btn btn-secondary w-full"
         style={{ marginTop: 12 }}

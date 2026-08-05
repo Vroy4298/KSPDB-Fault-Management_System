@@ -26,7 +26,6 @@ router.post('/telemetry', async (req, res) => {
     const payload = parseResult.data;
     const result = await processEvent(payload);
 
-    // Emit live telemetry event via Socket.io for real-time frontend updates
     const io = req.app.get('io');
     if (io) {
       io.emit('telemetry:event', {
@@ -71,7 +70,6 @@ router.post('/telemetry/batch', async (req, res) => {
     const payloads = parseResult.data;
     const summary = await processBatch(payloads);
 
-    // Notify connected clients of batch ingestion
     const io = req.app.get('io');
     if (io) {
       io.emit('telemetry:batch', {

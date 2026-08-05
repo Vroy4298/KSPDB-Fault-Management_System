@@ -74,14 +74,13 @@ async function injectDarkSignals(affectedPoleIds, tree, options = {}) {
 
   let explicit = 0, silent = 0, dupes = 0, ooo = 0;
 
-  // Build the batch of "speaking" poles (those that send explicit power_lost)
   const silentPoles = [];
   const speakingPoles = [];
 
   for (const poleId of affectedPoleIds) {
     const node = tree.nodes.get(poleId);
     const deviceId = node?.pole?.device_id;
-    if (!deviceId) continue; // no device, no signal at all
+    if (!deviceId) continue;
 
     const isFw12 = node.pole.fw_version?.startsWith('1.2');
     const goSilent = isFw12 || Math.random() < silentPct;
@@ -93,7 +92,6 @@ async function injectDarkSignals(affectedPoleIds, tree, options = {}) {
     }
   }
 
-  // 1. Mark silent poles directly (watchdog simulation)
   if (silentPoles.length > 0) {
     const placeholders = silentPoles.map((_, i) => `$${i + 1}`).join(', ');
     await pool.query(
@@ -105,7 +103,6 @@ async function injectDarkSignals(affectedPoleIds, tree, options = {}) {
     silent = silentPoles.length;
   }
 
-  // 2. Send explicit power_lost for speaking poles
   for (const { poleId, deviceId, fw } of speakingPoles) {
     const seq = randInt(10000, 99999);
 
@@ -120,7 +117,6 @@ async function injectDarkSignals(affectedPoleIds, tree, options = {}) {
     });
     explicit++;
 
-    // Duplicate (at-least-once delivery noise)
     if (Math.random() < dupPct) {
       await processEvent({
         device_id: deviceId,
@@ -128,21 +124,20 @@ async function injectDarkSignals(affectedPoleIds, tree, options = {}) {
         event: 'power_lost',
         energized: false,
         ts: new Date().toISOString(),
-        seq, // same seq → will be deduped correctly
+        seq,
         fw: fw ?? '1.4.2',
       });
       dupes++;
     }
 
-    // Out-of-order stale message noise (very low seq → will be rejected by OOO guard)
     if (Math.random() < oooPct) {
       await processEvent({
         device_id: deviceId,
         pole_id: poleId,
         event: 'power_lost',
         energized: false,
-        ts: new Date(Date.now() - 6 * 3600 * 1000).toISOString(), // 6 hours ago
-        seq: randInt(1, 100), // stale low seq → OOO guard discards state update
+        ts: new Date(Date.now() - 6 * 3600 * 1000).toISOString(),
+        seq: randInt(1, 100),
         fw: fw ?? '1.4.2',
       });
       ooo++;

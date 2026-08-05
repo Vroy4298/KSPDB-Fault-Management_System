@@ -20,7 +20,6 @@ export function useSocket(onEvent) {
     socket.on('connect',    () => setConnected(true));
     socket.on('disconnect', () => setConnected(false));
 
-    // Forward all events to the handler
     const events = [
       'telemetry:event',
       'telemetry:batch',
@@ -37,7 +36,6 @@ export function useSocket(onEvent) {
     }
 
     return () => { socket.disconnect(); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return { socket: socketRef.current, connected };

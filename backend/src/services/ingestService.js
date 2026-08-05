@@ -81,7 +81,6 @@ async function processEvent(payload, client = pool) {
   const { device_id, pole_id, event, ts, seq, battery_mv, rssi, fw } = payload;
   const energized = resolveEnergized(payload);
 
-  // 1. Insert event record (dedup via unique index)
   const evtResult = await client.query(INSERT_EVENT_SQL, [
     device_id, pole_id, event, energized,
     ts || null, seq ?? null,
@@ -93,18 +92,12 @@ async function processEvent(payload, client = pool) {
     return { status: 'duplicate', energized };
   }
 
-  // 2. Update pole live/dark state
   await client.query(UPSERT_STATE_SQL, [
     pole_id, energized, event, seq ?? null,
     device_id, battery_mv ?? null, rssi ?? null, fw ?? null,
   ]);
 
-  // 3. Fire localization when pole goes dark (power_lost or watchdog already
-  //    marks energized=false in pole_state).  Trigger uses per-DT debounce
-  //    so rapid bursts collapse into one localization run.
   if (!energized && client === pool) {
-    // Only trigger from pool (not batch tx client) to avoid nested tx issues.
-    // Batch trigger is handled separately after the transaction commits.
     triggerForPole(pole_id);
   }
 
@@ -150,12 +143,10 @@ async function processBatch(payloads) {
     client.release();
   }
 
-  // After commit: fire localization for DTs with new dark poles
   for (const poleId of darkPoles) {
     triggerForPole(poleId);
   }
 
-  // Auto-verify tickets for restored poles
   if (restoredPoles.size > 0) {
     const { autoVerifyRestoredTickets } = require('./ticketService');
     for (const poleId of restoredPoles) {

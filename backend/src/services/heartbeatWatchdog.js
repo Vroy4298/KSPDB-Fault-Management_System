@@ -38,10 +38,6 @@ async function runWatchdogCycle(io) {
   const timeoutMs = parseInt(process.env.HEARTBEAT_TIMEOUT_MS || '1200000', 10);
 
   try {
-    // Find device-equipped poles that:
-    //  - Were last seen alive (energized=true or freshly booted)
-    //  - Have been silent longer than the timeout
-    //  - Are NOT already flagged by the watchdog (avoid repeated noise)
     const result = await pool.query(
       `UPDATE pole_state ps
        SET
@@ -66,7 +62,6 @@ async function runWatchdogCycle(io) {
         flagged.slice(0, 5).join(', ') + (flagged.length > 5 ? '...' : '')
       );
 
-      // Notify the localization engine via Socket.io (Phase 3 will consume this)
       if (io) {
         io.emit('watchdog:poles_flagged', {
           pole_ids: flagged,
